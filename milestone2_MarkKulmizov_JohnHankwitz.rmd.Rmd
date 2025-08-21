@@ -1,0 +1,350 @@
+---
+title: "Market Disparity in the NBA: How does a Team’s Salary affect their Wins?"
+author: "Mark Kulmizev and John Hankwitz"
+date: "4/5/2025"
+output:
+  pdf_document:
+    number_sections: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, echo=FALSE, message = FALSE, results = FALSE, warning=FALSE}
+# ALL LIBRARY STATEMENTS HERE
+library(caret)
+library(ggplot2)
+library(knitr)
+library(broom)
+library(rpart)
+library(rpart.plot)
+library(dplyr)
+library(rattle)
+
+
+# these declarations are a good way to ensure that all random numbers in your report use the same settings:
+r.version <- "4.3.2"
+seed.val <- 123456
+# see line 60 for how they are referenced.
+```
+
+### Introduction
+
+
+We want to see if an NBA team’s market size affects its performance by looking at the win totals of different teams over the past four years, among other variables. To do this, we formed a dataset by merging datasets from multiple websites. The dataset includes the team salaries3 for every team in the past 4 (2021 - 2024) years, their conference2, the population of the city4 they are located in, the net worth of their owner6, what the salary cap was for that year2, a column for salary / salary cap to account for inflation, as well as the win total1 for that season. Our dataset includes a total of 120 different observations (4 seasons, 30 teams). Our outcome variable is wins, and our predictor variables are salary / salary cap, conference, owner net worth, and city population. We want to see if these variables that determine the size of a team’s market affect the number of wins a team gets. Big market teams are teams that generally have more wealth and revenue and thus can spend more money, which in turn allows them to sign better players. Big market teams also tend to be in more desirable locations, which serves as another motivator for players to sign there, besides the money. Although the NBA has implemented a salary cap to try to keep a balanced playing field, some teams can afford to spend over the cap limit and pay the penalty, which is a luxury tax. The goal of this report is to find out which predictors are most important when it comes to getting wins and to see if bigger market teams have an advantage when it comes to getting win totals.
+
+ 
+
+## Data Processing
+
+
+The goal of our project is to look at extremes in the NBA market so we decided to include outliers in our data set that would help indicate and flag teams that spend significantly more or less money as well as teams that have significantly higher or lower win totals.
+
+
+
+```{r echo=FALSE}
+# This is where you write R code that reads in the data, cleans it (deal with missing values and extreme outliers), and assigns any categorical types to factors.
+#NOTE: ALL R code will be hidden by the echo=FALSE chunk attribute so that the reader does not see it. 
+
+markets.df <- read.csv("NBAmarkets.csv")
+markets.df$Year <- factor(markets.df$Year)
+markets.df$Team <- factor(markets.df$Team)
+markets.df$Conference <- factor(markets.df$Conference)
+markets.df$Salary.Cap <- factor(markets.df$Salary.Cap)
+
+```
+
+# Data Exploration
+
+
+
+In order to explore the distribution of the amount of wins, we decided to look at the descriptive statistics of the Wins variable (such as the mean), and we also made a histogram to visualize this data. 
+
+```{r echo = FALSE}
+desc_stats <- data.frame(
+  Statistic   = c("Minimum", "1st Quarter", "Median", "Mean", "3rd Quarter", "Maximum"),
+  Value       = c(14,         32.75,         42.00,   39.75,  48.00,         64.00),
+  stringsAsFactors = FALSE
+)
+
+# Display the table
+kable(desc_stats, 
+      digits = 2, 
+      col.names = c("Statistic", "Value"),
+      caption = "Descriptive Statistics")
+```
+
+
+
+And here is the histogram:
+
+
+
+```{r echo=FALSE, out.width="80%", out.height="80%", fig.align = 'center', fig.cap="Frequency of Team Wins"}
+# your plot code will go here.
+
+summary(markets.df$Wins)
+
+hist(markets.df$Wins,
+     col = "blue",
+     border = "black",
+     xlab = "# of Wins",
+     main = "Wins")
+
+
+```
+
+
+From these descriptive statistics and the histogram, we can see that most teams throughout these 4 seasons racked up around 40 wins, with some teams getting much less and more wins with the minimum and maximum values. Now that we saw how the wins were distributed throughout these 4 seasons, we can now create a model that compares a team’s number of wins to their salary with respect to the salary cap
+
+
+```{r echo=FALSE}
+
+# use the kable function for all tables-make sure to add the caption as it will take care of the title and uniquely number all tables in your report.
+
+
+```
+
+
+
+## Training and Testing Data Sets
+
+
+
+To evaluate the performance of our linear regression model, we split the dataset into training and test sets. We use random sampling to ensure that the data is split without bias. We assign 75% of the data to the training set for model fitting, and the remaining 25% to the test set for model evaluation.
+
+
+```{r echo=FALSE}
+#Note these statements use the variables declared in the library load chunk at the beginning.
+RNGversion(r.version)
+set.seed(seed.val)
+
+# code to make up the training and testing sets here.
+sample.index <- sample(1:nrow(markets.df), size = 0.75 * nrow(markets.df))
+
+train.df <- markets.df[sample.index, ]
+test.df <- markets.df[-sample.index, ]
+
+```
+
+# Modeling
+
+
+
+## Linear Regression Model
+
+
+In this model, we are investigating the relationship between Salary.Salary.Cap (the outcome variable) and Wins (the predictor). We fit the model using 10-fold cross-validation to evaluate its performance and created a table with the important statistics.
+
+
+
+```{r echo=FALSE}
+# code to fit the model
+set.seed(123)
+
+cv.control <- trainControl(method = "cv", number = 10)
+
+model1 <- train(Wins ~ Salary.Salary.Cap + Conference + Owner.net.worth + City.Population, data = markets.df, 
+                method = "lm", trControl = cv.control)
+
+final_model <- model1$finalModel
+
+
+kable(tidy(final_model), digits = 7, caption = "Linear Regression Model Summary")
+
+```
+
+As shown in the table above, our model predicts that an increase of one in the Salary / Salary cap variable would increase that team’s number of wins by 35. It also predicts that being in the Western Conference increases the number of wins by 1 (rounded). It also shows that the city population and the owner's net worth do not affect the team’s wins.
+
+
+
+### Linear Regression Model Fit Results
+
+
+
+#Here is a plot that displays the distribution of the residuals:
+
+```{r echo=FALSE}
+# code to fit the model
+
+summary(model1$finalModel)
+
+plot(model1$finalModel$residuals, main="Residuals of the Linear Model", 
+     ylab="Residuals", xlab="Fitted Values", pch=19, col="blue")
+abline(h=0, col="red")
+```
+
+The residuals vs. fitted values plot shows a fairly random scatter around zero, suggesting that the linearity assumption is met. There is no clear pattern in the residuals, which indicates the model fits the data reasonably well. While there may be a slight increase in variance at higher fitted values, it’s not severe. Overall, the plot does not reveal major issues with the model.
+
+### Linear Regression Model Prediction Performance
+
+
+
+For evaluating the model's performance, We used the Root Mean Squared Error (RMSE) and R² as performance metrics. We applied the model to the test set to assess how well it generalizes. We also created a plot of predicted vs actual values to show a representation of how well the linear regression model worked.
+
+
+```{r echo=FALSE}
+# code to evaluate the model
+test_predictions <- predict(model1, newdata = test.df)
+rmse <- sqrt(mean((test_predictions - test.df$Salary.Salary.Cap)^2))
+rsq <- cor(test_predictions, test.df$Salary.Salary.Cap)^2
+
+kable(data.frame(RMSE = rmse, R_squared = rsq), digits = 5, caption = "Model Performance on Test Set")
+
+```
+
+Use the code chunk below for plots:
+
+```{r echo=FALSE, out.width="80%", out.height="80%", fig.align = 'center', fig.cap="Predicted vs Actual Wins for Linear Regression"}
+# your plot code will go here.
+ggplot(data.frame(Predicted = test_predictions, Actual = test.df$Wins), 
+       aes(x = Actual, y = Predicted)) +
+  geom_point() + 
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Predicted vs Actual for Linear Regression", 
+       x = "Actual Wins", y = "Predicted Wins")
+
+```
+
+The plot and linear regression prove that there is a decently strong linear relationship between the predicted wins and the actual wins, which shows that the model is relatively accurate. From this model, we can see that an increase of one in a team’s salary in regards to the salary cap for that season (salary / salary cap) increases their amount of wins by 35, and the p-value for this predictor is less than 0.05 (1.31e-07)so it can be concluded that it is statistically significant. This model also shows that the other predictors are not statistically significant, as their p-values are greater than 0.05. So overall, we can see that the most significant variable when it comes to determining a team’s number of wins is how large their salary is, as we predicted earlier. 
+
+
+## Regression Tree
+
+Our second model employs a regression tree to predict team wins from the same market‐size variables (salary/salary cap, conference, owner net worth, and city population).To better display the data, we pruned the tree based on the best tune for the cp value. This approach provides an interpretable set of decision rules and highlights key breakpoints in how market factors translate into determining each teams win total.
+
+
+```{r echo = FALSE}
+cv.control <- trainControl(method = "cv", number = 10)
+
+model2 <- train(
+  Wins ~ Salary.Salary.Cap + Conference + Owner.net.worth + City.Population,
+  data      = train.df,
+  method    = "rpart",
+  trControl = cv.control,
+  tuneLength= 10
+)
+
+pruned_tree <- prune(model2$finalModel, cp = model2$bestTune$cp)
+
+rpart.plot(
+  pruned_tree,
+  type = 2,
+  extra = 101,
+  fallen.leaves = TRUE,
+  cex = 0.5,
+  varlen = 0,
+  tweak = 1.1,
+  box.palette = "GnBu",
+  main = "Pruned Regression Tree"
+)
+
+```
+
+The regression tree makes clear that  salary/salary cap is by far the strongest driver of wins, but that its effect is further modulated by market size and owner wealth. At the very top, the tree predicts an average of 40 wins across all 90 training seasons, then immediately splits on the Salary/Salary Cap ratio at 1.2. Teams spending 1.2x the cap fall into the left branch, where they average 34 wins. Teams spending at or above 1.2x the cap occupy the right branch. The tree shows a clear hierarchy in the variables. Salary/salary cap first, then owner wealth and market population. Teams that significantly overspend the cap win roughly 46 games on average, but only the very largest markets or richest owners push that into the low‑50s. Low‑spending teams almost never reach 30–35 wins.
+
+
+
+### Model 2 Fit Results
+
+```{r echo=FALSE}
+best_cp    <- model2$bestTune$cp
+
+cv_results <- model2$results %>%
+  filter(cp == best_cp)
+
+imp2 <- varImp(model2)$importance
+
+
+kable(cv_results, digits = 3,
+      caption = "Regression Tree CV Results (tuned cp)")
+
+
+kable(imp2, digits = 3,
+      caption = "Variable Importance (Regression Tree)")
+
+
+```
+
+### Model 2 Prediction Performance
+
+```{r echo=FALSE, fig.cap="Predicted vs Actual Wins for Regression Tree"}
+test_predictions <- predict(model2, newdata = test.df)
+rmse <- sqrt(mean((test_predictions - test.df$Salary.Salary.Cap)^2))
+rsq <- cor(test_predictions, test.df$Salary.Salary.Cap)^2
+
+kable(data.frame(RMSE = rmse, R_squared = rsq), digits = 3, caption = "Model 2 Performance on Test Set")
+
+```
+
+```{r echo=FALSE, out.width="80%", out.height="80%", fig.align = 'center', fig.cap="Predicted vs Actual Wins for Regression Tree"}
+
+ggplot(data.frame(Predicted = test_predictions, Actual = test.df$Wins), 
+       aes(x = Actual, y = Predicted)) +
+  geom_point() + 
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Predicted vs Actual for Regression Tree", 
+       x = "Actual Wins", y = "Predicted Wins")
+
+```
+
+
+# Result Summary
+
+In this section, you combine the results of both models and compare/contrast their results. 
+
+Describe how they fit the training data: did they both consider the same variables "important"? 
+Use a table to summarize this.
+
+```{r echo=FALSE}
+# table code summarizing fit of both models
+lin_vi  <- varImp(model1)$importance
+tree_vi <- varImp(model2)$importance
+
+vi_comp <- data.frame(
+  Variable           = rownames(lin_vi),
+  Linear_Importance  = round(lin_vi$Overall,  3),
+  Tree_Importance    = round(tree_vi$Overall, 3)
+)
+
+lm_pred  <- predict(model1, newdata = test.df)
+tree_pred<- predict(model2, newdata = test.df)
+
+perf_comp <- data.frame(
+  Model             = c("Linear Regression", "Regression Tree"),
+  RMSE              = c(
+    round(sqrt(mean((lm_pred   - test.df$Wins)^2)),3),
+    round(sqrt(mean((tree_pred - test.df$Wins)^2)),3)
+  ),
+  R_squared         = c(
+    round(cor(lm_pred,   test.df$Wins)^2,3),
+    round(cor(tree_pred, test.df$Wins)^2,3)
+  )
+)
+
+kable(vi_comp,   caption = "Variable Importance: Linear vs. Tree")
+kable(perf_comp, caption = "Test‐Set Performance Comparison")
+```
+
+Explain in writing what the table shows.
+
+Describe how each model performed. Use tables and plots. For regression, summarize in a table and/or plot. For classifiers, summarize confusion matrix results in a table, combine both models in an ROC curve.  
+
+# Conclusions
+
+In this section, describe how the results informed your investigation of your research question(s). Did the models help you answer your questions? If not, why do you think that is? Did the results produce any unexpected results or aspects of the data? Did you get any insights from your work that suggest interesting directions to take? How would you go further if you were to continue with this analysis?
+
+You can also mention any difficulties you faced and any threats to the validity o your conclusions.
+
+# References
+
+
+
+#1) Data for wins: https://www.google.com/search?q=nba+23-24+standings&oq=nba+23-24+standi&gs_lcrp=EgZjaHJvbWUqBwgAEAAYgAQyBwgAEAAYgAQyBggBEEUYOTIICAIQABgWGB4yCAgDEAAYFhgeMggIBBAAGBYYHjIICAUQABgWGB4yCAgGEAAYFhgeMggIBxAAGBYYHjIICAgQABgWGB4yCAgJEAAYFhge0gEJNDIwN2owajE1qAIIsAIB8QWzBzTiiLx8ZA&sourceid=chrome&ie=UTF-8#sie=lg;/g/11snv1vp6v;3;/m/05jvx;st;fp;1
+
+#2) Data for Salary Caps: https://www.basketball-reference.com/contracts/salary-cap-history.html 
+#3) Data for Team Salaries and conferences: https://hoopshype.com/salaries/2023-2024/
+#4) Data for city populations (most teams): https://worldpopulationreview.com/us-cities 
+#5) Data for Toronto’s population: https://www.toronto.ca/city-government/data-research-maps/toronto-at-a-glance/ 
+#6) Data for Owner Net Worths:https://justrichest.com/all-the-nba-team-owners-and-their-net-worth/ 
+
+
