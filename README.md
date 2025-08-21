@@ -29,15 +29,10 @@ Using multiple datasets (salaries, salary cap, owner net worth, city population,
 - Regression model (R² ~0.72) outperformed regression tree (R² ~0.55), but trees highlighted clear spending thresholds for competitive teams.  
 - Takeaway: **It’s not how big your market is — it’s how much your organization invests.**  
 
-## 📊 Example Visuals  
-(Add screenshots of your regression plot, regression tree, or correlation heatmap here once you export them as PNGs.)  
-
-## 🚀 Future Improvements  
-- Add time-series analysis across multiple seasons.  
+## 🚀 Future Improvements   
 - Re-implement models in Python with Scikit-learn for portfolio variety.  
 - Build an interactive dashboard (Shiny in R or Streamlit in Python).  
 
 ## 👤 Author  
-**John Hankwitz** – Senior at UMass Amherst studying Informatics (Data Science concentration) & Computer Science minor.  
-- [GitHub Profile](#)  
-- [LinkedIn](#)  
+**John Hankwitz** – Senior at UMass Amherst studying Informatics (Data Science concentration) & Computer Science minor.   
+- [[LinkedIn](https://www.linkedin.com/in/john-bijoy-hankwitz-6824441ab/)](#)  
